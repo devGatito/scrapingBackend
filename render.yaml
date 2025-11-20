@@ -4,13 +4,15 @@ services:
     env: node
     region: oregon
     buildCommand: |
-      echo "=== INICIO DE LA CONSTRUCCIÓN ==="
-      echo "Node.js: $(node -v)"
-      echo "npm: $(npm -v)"
-      echo "Instalando dependencias con npm..."
-      npm install --no-fund --no-audit --prefer-offline
-      echo "Construyendo la aplicación..."
-      npm run build
+        echo "=== INICIO DE LA CONSTRUCCIÓN ==="
+        echo "Node.js: $(node -v)"
+        echo "npm: $(npm -v)"
+        echo "Eliminando pnpm si existe..."
+        rm -f $(which pnpm) 2>/dev/null || true
+        echo "Instalando con npm..."
+        npm install --no-fund --no-audit --prefer-offline
+        echo "Construyendo la aplicación..."
+        npm run build
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
