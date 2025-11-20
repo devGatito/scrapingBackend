@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: scrapping-inmobiliaria
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.0.0
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
+    build:
+      useCache: true
+    envVars:
+      - key: NODE_ENV
+        value: production
