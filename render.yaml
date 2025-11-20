@@ -4,8 +4,10 @@ services:
     env: node
     region: oregon
     buildCommand: |
-      echo "Instalando dependencias con npm..."
-      npm install --prefer-offline
+      echo "Configurando npm..."
+      npm config set registry https://registry.npmjs.org/
+      echo "Instalando dependencias..."
+      npm install --no-fund --no-audit --prefer-offline
       echo "Construyendo la aplicación..."
       npm run build
     startCommand: npm start
@@ -20,8 +22,10 @@ services:
         value: 3000
       - key: NPM_CONFIG_USER_AGENT
         value: "npm/10.0.0 node/v20.10.0 linux x64"
+      - key: NPM_CONFIG_PREFER_OFFLINE
+        value: "true"
     build:
       useCache: true
-      cacheVersion: v2
+      cacheVersion: v3
     healthCheckPath: /
     autoDeploy: true
