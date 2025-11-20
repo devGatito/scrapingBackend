@@ -4,8 +4,8 @@ services:
     env: node
     region: oregon
     buildCommand: |
-      echo "Instalando dependencias..."
-      npm install
+      echo "Instalando dependencias con npm..."
+      npm install --prefer-offline
       echo "Construyendo la aplicación..."
       npm run build
     startCommand: npm start
@@ -18,8 +18,10 @@ services:
         value: production
       - key: PORT
         value: 3000
+      - key: NPM_CONFIG_USER_AGENT
+        value: "npm/10.0.0 node/v20.10.0 linux x64"
     build:
       useCache: true
-      cacheVersion: v1
+      cacheVersion: v2
     healthCheckPath: /
     autoDeploy: true
