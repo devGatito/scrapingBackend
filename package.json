@@ -13,11 +13,12 @@
   "keywords": ["scraping", "inmobiliaria", "api"],
   "author": "",
   "license": "ISC",
-   "engines": {
+  "engines": {
     "node": "20.10.0",
     "npm": ">=10.0.0",
-    "pnpm": "please-use-npm"
+    "pnpm": "NO_PLEASE_USE_NPM"
   },
+  "packageManager": "npm@10.0.0",
   "dependencies": {
     "axios": "^1.7.7",
     "cheerio": "^1.0.0",
