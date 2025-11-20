@@ -39,11 +39,39 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebScraperService = void 0;
 const axios_1 = __importDefault(require("axios"));
 const cheerio_1 = require("cheerio");
-const env_1 = require("../config/env");
-const net_1 = require("../utils/net");
 const https_proxy_agent_1 = require("https-proxy-agent");
 const https = __importStar(require("https"));
+const http = __importStar(require("http"));
+const env_1 = require("../config/env");
+const net_1 = require("../utils/net");
 class WebScraperService {
+    // Helper method to generate a random IP address
+    generateRandomIp() {
+        return Array(4).fill(0)
+            .map(() => Math.floor(Math.random() * 255) + 1)
+            .join('.');
+    }
+    // Helper method to get a random platform
+    getRandomPlatform() {
+        const platforms = ['"Windows"', '"macOS"', '"Linux"', '"Chrome OS"'];
+        return platforms[Math.floor(Math.random() * platforms.length)];
+    }
+    getRandomUserAgent() {
+        const userAgents = [
+            // Windows
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+            // MacOS
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+            // Linux
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0',
+            // Add the static USER_AGENTS as fallback
+            ...WebScraperService.USER_AGENTS
+        ];
+        return userAgents[Math.floor(Math.random() * userAgents.length)];
+    }
     /**
      * Obtiene la configuración del proxy a utilizar
      * Prioridad: 1. Proxy móvil (si está configurado) 2. Proxy residencial 3. Sin proxy
@@ -104,9 +132,9 @@ class WebScraperService {
         }
         try {
             // Realizar petición HTTP
-            const response = await this.fetchPage(url);
+            const html = await this.fetchPage(url);
             // Procesar HTML con Cheerio
-            return this.parseHtml(response.data, url);
+            return this.parseHtml(html, url);
         }
         catch (error) {
             if (axios_1.default.isAxiosError(error)) {
@@ -120,76 +148,190 @@ class WebScraperService {
     /**
      * Realiza la petición HTTP a la URL
      */
+    // Ensure URL uses HTTPS and handle CORS preflight
+    ensureHttps(url) {
+        if (url.startsWith('http://')) {
+            return url.replace('http://', 'https://');
+        }
+        else if (!url.startsWith('https://')) {
+            return `https://${url}`;
+        }
+        return url;
+    }
+    // Handle CORS preflight and set appropriate headers
+    getCorsHeaders(isInmuebles24) {
+        const headers = {
+            'Access-Control-Allow-Origin': isInmuebles24 ? 'https://www.inmuebles24.com' : '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400' // 24 hours
+        };
+        return headers;
+    }
     async fetchPage(url) {
+        // Ensure URL uses HTTPS
+        url = this.ensureHttps(url);
         const urlObj = new URL(url);
         const isInmuebles24 = urlObj.hostname.includes('inmuebles24.com');
-        const desktopUA = WebScraperService.USER_AGENTS[Math.floor(Math.random() * WebScraperService.USER_AGENTS.length)];
+        // Get CORS headers
+        const corsHeaders = this.getCorsHeaders(isInmuebles24);
+        // Obtener configuración del proxy
+        const proxy = this.getProxyConfig();
+        // Generar un número aleatorio para variar los headers
+        const randomValue = Math.random().toString(36).substring(2, 8);
+        // Configuración de headers mejorada y más realista
         const baseHeaders = {
-            'User-Agent': desktopUA,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'User-Agent': this.getRandomUserAgent(),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'Accept-Language': 'es-MX,es-ES;q=0.9,es;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
+            'Cache-Control': 'max-age=0',
+            'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
             'Sec-Fetch-Dest': 'document',
             'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-Site': 'same-origin',
             'Sec-Fetch-User': '?1',
-            'sec-ch-ua': '"Chromium";v="120", "Not=A?Brand";v="24", "Google Chrome";v="120"',
+            'sec-ch-ua': '"Google Chrome";v="120", "Not)A;Brand";v="8", "Chromium";v="120"',
             'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Linux"',
+            'sec-ch-ua-platform': this.getRandomPlatform(),
+            'DNT': Math.random() > 0.5 ? '1' : '0',
+            'Referer': 'https://www.google.com/',
+            'Pragma': 'no-cache',
+            'TE': 'trailers',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-Forwarded-For': this.generateRandomIp(),
+            'X-Forwarded-Host': urlObj.hostname,
+            'X-Forwarded-Proto': 'https',
+            'X-Real-IP': this.generateRandomIp(),
+            'X-Custom-Id': randomValue,
+            'X-Request-Id': randomValue,
+            'X-Timestamp': Date.now().toString(),
         };
+        // Headers específicos para inmuebles24
         if (isInmuebles24) {
+            // Añadir headers adicionales específicos para inmuebles24
             baseHeaders['Referer'] = 'https://www.google.com/';
-            baseHeaders['Sec-Fetch-Site'] = 'cross-site';
+            baseHeaders['Sec-Fetch-Site'] = 'same-origin';
+            baseHeaders['Origin'] = 'https://www.inmuebles24.com';
+            baseHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9';
+            // Añadir cookies si están disponibles
+            if (!baseHeaders['Cookie']) {
+                baseHeaders['Cookie'] = `_ga=GA1.2.${Math.floor(Math.random() * 1000000000)}.${Math.floor(Date.now() / 1000)}; ` +
+                    `_gid=GA1.2.${Math.floor(Math.random() * 1000000000)}.${Math.floor(Date.now() / 1000)}; ` +
+                    `_fbp=fb.1.${Date.now()}.${Math.floor(Math.random() * 1000000000)}; ` +
+                    `_hjid=${Math.random().toString(36).substring(2, 15)}`;
+            }
         }
-        // Obtener configuración del proxy
-        const proxy = this.getProxyConfig();
-        // Configuración común para axios
+        // Common axios configuration with enhanced security
         const axiosConfig = {
-            timeout: env_1.env.scrapeTimeoutMs,
+            timeout: env_1.env.scrapeTimeoutMs || 30000, // 30 seconds default
             maxRedirects: 5,
-            maxContentLength: env_1.env.scrapeMaxBytes,
-            maxBodyLength: env_1.env.scrapeMaxBytes,
+            maxContentLength: env_1.env.scrapeMaxBytes || 50 * 1024 * 1024, // 50MB default
+            maxBodyLength: env_1.env.scrapeMaxBytes || 50 * 1024 * 1024,
             responseType: 'text',
+            headers: {
+                ...baseHeaders,
+                ...corsHeaders, // Add CORS headers
+                'Origin': isInmuebles24 ? 'https://www.inmuebles24.com' : urlObj.origin,
+                'Referer': isInmuebles24 ? 'https://www.inmuebles24.com/' : `${urlObj.origin}/`,
+            },
+            validateStatus: (status) => status >= 200 && status < 400, // Solo aceptar códigos 2xx y 3xx
             httpsAgent: new https.Agent({
-                rejectUnauthorized: false, // Ignorar errores de certificado
+                rejectUnauthorized: process.env.NODE_ENV !== 'production', // Only in development
+                keepAlive: true,
+                maxFreeSockets: 15,
+                timeout: env_1.env.scrapeTimeoutMs || 30000,
+                ...(urlObj.hostname ? { servername: urlObj.hostname } : {})
             }),
-            headers: { ...baseHeaders },
-            validateStatus: () => true, // Manejar todos los códigos de estado
+            httpAgent: new http.Agent({
+                keepAlive: true,
+                timeout: env_1.env.scrapeTimeoutMs || 30000
+            })
         };
-        // Configurar proxy si está disponible
+        // Configure proxy if available
         if (proxy) {
-            const proxyUrl = `${proxy.protocol}://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.host}:${proxy.port}`;
-            axiosConfig.httpsAgent = new https_proxy_agent_1.HttpsProxyAgent(proxyUrl);
-            axiosConfig.httpsAgent.rejectUnauthorized = false;
+            const proxyUrl = proxy.auth?.username
+                ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.host}:${proxy.port}`
+                : `http://${proxy.host}:${proxy.port}`;
+            const agent = new https_proxy_agent_1.HttpsProxyAgent(proxyUrl, {
+                timeout: env_1.env.scrapeTimeoutMs || 30000,
+                ...(urlObj.hostname ? { servername: urlObj.hostname } : {})
+            }); // Type assertion to access https.Agent properties
+            // Set rejectUnauthorized on the underlying https.Agent
+            if (agent.httpsAgent) {
+                agent.httpsAgent.rejectUnauthorized = process.env.NODE_ENV === 'production';
+            }
+            axiosConfig.httpsAgent = agent;
+            axiosConfig.httpAgent = agent;
+            axiosConfig.proxy = false; // Important to avoid conflicts
+            // Add proxy headers if needed
+            if (isInmuebles24) {
+                axiosConfig.headers = {
+                    ...axiosConfig.headers,
+                    'X-Forwarded-Proto': 'https',
+                    'X-Forwarded-Host': urlObj.hostname,
+                    'X-Forwarded-Port': '443'
+                };
+            }
         }
         const attempt = async (headers) => {
-            const config = { ...axiosConfig };
-            config.headers = { ...config.headers, ...headers };
+            // Merge headers with priority to the most specific ones
+            const mergedHeaders = {
+                ...corsHeaders,
+                ...axiosConfig.headers,
+                ...headers,
+                // Ensure these critical headers are always set
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            };
+            const config = {
+                ...axiosConfig,
+                headers: mergedHeaders,
+                timeout: env_1.env.scrapeTimeoutMs || 30000,
+                // Add request transformer for additional processing
+                transformRequest: [
+                    // @ts-ignore - Axios types are a bit wonky here
+                    (data, headers) => {
+                        if (headers) {
+                            // Add timestamp to prevent caching
+                            headers['X-Request-Timestamp'] = Date.now().toString();
+                            // Add unique request ID
+                            if (!headers['X-Request-ID']) {
+                                headers['X-Request-ID'] = `req_${Math.random().toString(36).substr(2, 9)}`;
+                            }
+                        }
+                        return data;
+                    }
+                ]
+            };
             try {
-                const resp = await axios_1.default.get(url, config);
-                return resp;
+                const response = await axios_1.default.get(url, config);
+                return response.data;
             }
             catch (error) {
-                console.error('Error en la petición:', error.message);
-                if (error.response) {
-                    // La petición fue hecha y el servidor respondió con un código de estado
-                    // que no está en el rango 2xx
-                    console.error('Error response data:', error.response.data);
-                    console.error('Error status:', error.response.status);
-                    console.error('Error headers:', error.response.headers);
+                if (axios_1.default.isAxiosError(error)) {
+                    if (error.response) {
+                        // La petición fue hecha y el servidor respondió con un código de estado
+                        const { status, statusText } = error.response;
+                        if (status === 403) {
+                            throw new Error('Acceso denegado (403) - Puede que el sitio esté bloqueando peticiones automatizadas');
+                        }
+                        else if (status === 429) {
+                            throw new Error('Demasiadas peticiones (429) - Por favor, inténtalo de nuevo más tarde');
+                        }
+                        else {
+                            throw new Error(`Error HTTP ${status}: ${statusText}`);
+                        }
+                    }
+                    else if (error.request) {
+                        // La petición fue hecha pero no se recibió respuesta
+                        throw new Error('No se recibió respuesta del servidor');
+                    }
                 }
-                else if (error.request) {
-                    // La petición fue hecha pero no se recibió respuesta
-                    console.error('No se recibió respuesta del servidor');
-                }
-                else {
-                    // Algo pasó al configurar la petición que desencadenó un error
-                    console.error('Error al configurar la petición:', error.message);
-                }
-                throw error;
+                throw new Error(`Error en la petición: ${error instanceof Error ? error.message : 'Error desconocido'}`);
             }
         };
         // 0) Warm-up para obtener cookies si es un dominio con WAF (e.g., inmuebles24)
@@ -221,22 +363,43 @@ class WebScraperService {
         }
         // 1) Intento con UA de escritorio (reutilizando cookies si las obtuvimos)
         const firstHeaders = warmedCookie ? { ...baseHeaders, Cookie: warmedCookie } : baseHeaders;
-        let response = await attempt(firstHeaders);
-        // 2) Si falla y es inmuebles24, reintentar con UA móvil y mismos headers
-        if (isInmuebles24 && (response.status < 200 || response.status >= 400)) {
-            const mobileHeaders = {
-                ...firstHeaders,
-                'User-Agent': WebScraperService.MOBILE_UA,
-                'sec-ch-ua-mobile': '?1',
-            };
-            response = await attempt(mobileHeaders);
+        try {
+            let response = await attempt(firstHeaders);
+            return response; // Success case - return the response data (string)
         }
-        if (response.status >= 200 && response.status < 400) {
-            return response;
+        catch (error) {
+            // 2) Si falla y es inmuebles24, reintentar con UA móvil y mismos headers
+            if (isInmuebles24 && axios_1.default.isAxiosError(error) && error.response) {
+                const mobileHeaders = {
+                    ...firstHeaders,
+                    'User-Agent': WebScraperService.MOBILE_UA,
+                    'sec-ch-ua-mobile': '?1',
+                };
+                try {
+                    const retryResponse = await attempt(mobileHeaders);
+                    return retryResponse; // Success on retry - return the response data (string)
+                }
+                catch (retryError) {
+                    // If retry also fails, handle the error
+                    if (axios_1.default.isAxiosError(retryError) && retryError.response) {
+                        const { status, statusText, data } = retryError.response;
+                        const bodyLen = typeof data === 'string' ? data.length : 0;
+                        throw new Error(`HTTP_ERROR: STATUS_${status} - ${statusText} [host=${urlObj.hostname} path=${urlObj.pathname} len=${bodyLen}]`);
+                    }
+                    throw retryError;
+                }
+            }
+            // Handle the original error if not an axios error or no response
+            if (axios_1.default.isAxiosError(error) && error.response) {
+                const { status, statusText, data } = error.response;
+                const bodyLen = typeof data === 'string' ? data.length : 0;
+                throw new Error(`HTTP_ERROR: STATUS_${status} - ${statusText} [host=${urlObj.hostname} path=${urlObj.pathname} len=${bodyLen}]`);
+            }
+            // For non-axios errors or errors without response
+            throw error instanceof Error
+                ? error
+                : new Error('An unknown error occurred while fetching the page');
         }
-        const statusText = response.statusText || 'Request failed';
-        const bodyLen = typeof response.data === 'string' ? response.data.length : 0;
-        throw new Error(`HTTP_ERROR: STATUS_${response.status} - ${statusText} [host=${urlObj.hostname} path=${urlObj.pathname} len=${bodyLen}]`);
     }
     /**
      * Procesa el HTML y extrae el contenido estructurado
@@ -402,9 +565,22 @@ class WebScraperService {
 }
 exports.WebScraperService = WebScraperService;
 WebScraperService.USER_AGENTS = [
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    // Chrome Windows
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+    // Chrome Mac
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    // Firefox Windows
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0',
+    // Safari Mac
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15',
+    // Linux
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0',
 ];
 WebScraperService.MOBILE_UA = 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
 WebScraperService.MIN_DIMENSION_PX = 150;

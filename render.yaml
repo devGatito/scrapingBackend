@@ -2,16 +2,16 @@ services:
   - type: web
     name: scrapping-inmobiliaria
     env: node
-    region: oregon  # Cambia a tu región preferida
+    region: oregon
     buildCommand: |
       echo "Instalando dependencias..."
-      npm ci
+      npm install
       echo "Construyendo la aplicación..."
       npm run build
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
-        value: 18.0.0
+        value: 20.10.0
       - key: NPM_CONFIG_PRODUCTION
         value: "false"
       - key: NODE_ENV
