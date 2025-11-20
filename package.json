@@ -5,6 +5,7 @@
   "main": "dist/src/server.js",
   "scripts": {
     "start": "node dist/src/server.js",
+    "preinstall": "echo 'Forzando uso de npm...' && npm -v",
     "build": "tsc",
     "start:dev": "ts-node --transpile-only src/server.ts",
     "dev": "ts-node --transpile-only src/server.ts",
