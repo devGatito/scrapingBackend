@@ -7,11 +7,12 @@ services:
         echo "=== INICIO DE LA CONSTRUCCIÓN ==="
         echo "Node.js: $(node -v)"
         
-        # Instalar pnpm globalmente si no está instalado
-        if ! command -v pnpm &> /dev/null; then
-            echo "Instalando pnpm..."
-            npm install -g pnpm
-        fi
+        # Configurar pnpm
+        echo "Configurando pnpm..."
+        npm install -g pnpm
+        pnpm config set store-dir .pnpm-store
+        pnpm setup
+        export PATH="$HOME/.local/share/pnpm:$PATH"
         
         echo "pnpm: $(pnpm -v)"
         
@@ -31,6 +32,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20.10.0
+      - key: PNPM_HOME
+        value: /opt/render/.local/share/pnpm
+      - key: PATH
+        value: $PNPM_HOME:$PATH
       - key: NPM_CONFIG_PRODUCTION
         value: "false"
       - key: NODE_ENV
