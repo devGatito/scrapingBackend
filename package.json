@@ -3,23 +3,27 @@
   "version": "1.0.0",
   "description": "API de Scraping Inmobiliario",
   "main": "dist/src/server.js",
-  
-  "scripts": {
-    "preinstall": "echo 'Usando npm...' && npm -v",
-    "start": "node dist/src/server.js",
-    "build": "tsc",
-    "dev": "ts-node --transpile-only src/server.ts"
-  },
   "keywords": ["scraping", "inmobiliaria", "api"],
   "author": "",
   "license": "ISC",
-  
   "engines": {
     "node": "20.18.1",
     "npm": ">=10.8.2"
-  
-},
+  },
   "packageManager": "npm@10.0.0",
+  "scripts": {
+    "preinstall": "node -e \"try { require('fs').writeFileSync('preinstall.log', 'Iniciando instalación...\\n', { flag: 'a' }); } catch (e) {}\" && node -e \"require('events').defaultMaxListeners = 30;\"",
+    "postinstall": "echo 'Instalación completada con éxito' && npm run build",
+    "start": "node --max-http-header-size=16384 -r ./src/utils/patch-event-emitter.js dist/src/server.js",
+    "build": "tsc --incremental",
+    "dev": "NODE_OPTIONS='--max-http-header-size=16348 --max-old-space-size=2048' ts-node --transpile-only src/server.ts",
+    "clean": "rm -rf node_modules package-lock.json dist",
+    "clean:install": "npm run clean && npm install",
+    "lint": "eslint src --ext .ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
   "dependencies": {
     "axios": "^1.7.7",
     "cheerio": "^1.0.0",
@@ -34,8 +38,14 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.14.10",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
     "nodemon": "^3.1.7",
+    "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   }
