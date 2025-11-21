@@ -4,33 +4,30 @@ services:
     env: node
     region: oregon
     buildCommand: |
-        # Ensure we're using the correct Node.js version
         echo "=== INICIO DE LA CONSTRUCCIÓN ==="
         echo "Node.js: $(node -v)"
-        echo "npm: $(npm -v)"
         
-        # Completely remove pnpm if it exists
-        echo "Eliminando pnpm..."
-        rm -rf $(which pnpm) 2>/dev/null || true
-        rm -rf ~/.pnpm-store 2>/dev/null || true
+        # Instalar pnpm globalmente si no está instalado
+        if ! command -v pnpm &> /dev/null; then
+            echo "Instalando pnpm..."
+            npm install -g pnpm
+        fi
         
-        # Clean up any existing node_modules
+        echo "pnpm: $(pnpm -v)"
+        
+        # Limpiar instalaciones previas
         echo "Limpiando instalaciones previas..."
-        rm -rf node_modules 2>/dev/null || true
-        rm -f package-lock.json 2>/dev/null || true
+        rm -rf node_modules
+        rm -f pnpm-lock.yaml
         
-        # Force npm usage
-        echo "Configurando npm..."
-        npm config set user-agent "npm/10.0.0 node/v20.10.0 linux x64"
+        # Instalar dependencias con pnpm
+        echo "Instalando dependencias con pnpm..."
+        pnpm install --frozen-lockfile=false
         
-        # Install with npm
-        echo "Instalando dependencias con npm..."
-        npm install --no-fund --no-audit --prefer-offline --no-package-lock
-        
-        # Build the application
+        # Construir la aplicación
         echo "Construyendo la aplicación..."
-        npm run build
-    startCommand: npm start
+        pnpm run build
+    startCommand: pnpm start
     envVars:
       - key: NODE_VERSION
         value: 20.10.0
@@ -38,11 +35,3 @@ services:
         value: "false"
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
-      - key: NPM_CONFIG_USER_AGENT
-        value: "npm/10.0.0 node/v20.10.0 linux x64"
-    build:
-      useCache: true
-      cacheVersion: v4
-    healthCheckPath: /
