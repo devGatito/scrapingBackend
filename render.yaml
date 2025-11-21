@@ -6,37 +6,29 @@ services:
     buildCommand: |
         echo "=== INICIO DE LA CONSTRUCCIÓN ==="
         echo "Node.js: $(node -v)"
-        
-        # Configurar pnpm
-        echo "Configurando pnpm..."
-        npm install -g pnpm
-        pnpm config set store-dir .pnpm-store
-        pnpm setup
-        export PATH="$HOME/.local/share/pnpm:$PATH"
-        
-        echo "pnpm: $(pnpm -v)"
+        echo "npm: $(npm -v)"
         
         # Limpiar instalaciones previas
         echo "Limpiando instalaciones previas..."
         rm -rf node_modules
-        rm -f pnpm-lock.yaml
+        rm -f package-lock.json
         
-        # Instalar dependencias con pnpm
-        echo "Instalando dependencias con pnpm..."
-        pnpm install --frozen-lockfile=false
+        # Instalar dependencias con npm
+        echo "Instalando dependencias con npm..."
+        npm install --no-fund --no-audit --prefer-offline
         
         # Construir la aplicación
         echo "Construyendo la aplicación..."
-        pnpm run build
-    startCommand: pnpm start
+        npm run build
+        
+        echo "=== CONSTRUCCIÓN COMPLETADA ==="
+    startCommand: npm start
     envVars:
       - key: NODE_VERSION
         value: 20.10.0
-      - key: PNPM_HOME
-        value: /opt/render/.local/share/pnpm
-      - key: PATH
-        value: $PNPM_HOME:$PATH
       - key: NPM_CONFIG_PRODUCTION
         value: "false"
       - key: NODE_ENV
         value: production
+      - key: NPM_CONFIG_ENGINE_STRICT
+        value: "true"
